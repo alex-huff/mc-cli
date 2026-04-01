@@ -3,12 +3,11 @@ package com.alexfh.mccli.util;
 import com.alexfh.mccli.mixin.ConfigScreenFactoriesAccessor;
 import com.terraformersmc.modmenu.ModMenu;
 import com.terraformersmc.modmenu.util.mod.Mod;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 
 public class ModMenuUtil
 {
@@ -22,7 +21,7 @@ public class ModMenuUtil
 
     public static boolean openConfigScreenFromModName(String modName)
     {
-        MinecraftClient minecraftClient = MinecraftClient.getInstance();
+        Minecraft minecraftClient = Minecraft.getInstance();
         Map.Entry<String, Mod> modIDEntry = ModMenu.MODS.entrySet().stream()
             .filter(entry -> entry.getValue().getName().equals(modName)).findFirst().orElse(null);
         if (modIDEntry == null)
@@ -30,7 +29,7 @@ public class ModMenuUtil
             return false;
         }
         String modID = modIDEntry.getKey();
-        Screen configScreen = ModMenu.getConfigScreen(modID, minecraftClient.currentScreen);
+        Screen configScreen = ModMenu.getConfigScreen(modID, minecraftClient.screen);
         if (configScreen == null)
         {
             return false;

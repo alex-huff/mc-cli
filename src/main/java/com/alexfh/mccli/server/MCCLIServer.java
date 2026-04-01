@@ -2,14 +2,6 @@ package com.alexfh.mccli.server;
 
 import com.alexfh.mccli.util.ModMenuUtil;
 import com.terraformersmc.modmenu.ModMenu;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.client.network.ServerInfo;
-import net.minecraft.client.option.SimpleOption;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.text.Text;
-
 import java.io.IOException;
 import java.net.StandardProtocolFamily;
 import java.net.UnixDomainSocketAddress;
@@ -23,6 +15,13 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.OptionInstance;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundSource;
 
 public class MCCLIServer extends Thread
 {
@@ -193,14 +192,14 @@ public class MCCLIServer extends Thread
         {
             case "ping" -> this.sendResponse(socketChannel, "pong", true);
             case "get-username" ->
-                this.sendResponse(socketChannel, MinecraftClient.getInstance().getSession().getUsername(), true);
+                this.sendResponse(socketChannel, Minecraft.getInstance().getUser().getName(), true);
             case "get-server-ip" ->
             {
                 CompletableFuture<String> addressFuture = new CompletableFuture<>();
-                MinecraftClient.getInstance().execute(() ->
+                Minecraft.getInstance().execute(() ->
                 {
-                    ServerInfo serverInfo = MinecraftClient.getInstance().getCurrentServerEntry();
-                    String address = serverInfo == null ? null : serverInfo.address;
+                    ServerData serverInfo = Minecraft.getInstance().getCurrentServer();
+                    String address = serverInfo == null ? null : serverInfo.ip;
                     addressFuture.complete(address);
                 });
                 String address = addressFuture.join();
@@ -216,7 +215,7 @@ public class MCCLIServer extends Thread
             case "get-config-names" ->
             {
                 CompletableFuture<List<String>> configNamesFuture = new CompletableFuture<>();
-                MinecraftClient.getInstance()
+                Minecraft.getInstance()
                     .execute(() -> configNamesFuture.complete(ModMenuUtil.getModMenuConfigNames()));
                 List<String> configNames = configNamesFuture.join();
                 this.sendResponse(socketChannel, String.join("\n", configNames), true);
@@ -224,7 +223,7 @@ public class MCCLIServer extends Thread
             case "get-mods" ->
             {
                 CompletableFuture<List<String>> modsFuture = new CompletableFuture<>();
-                MinecraftClient.getInstance().execute(() -> modsFuture.complete(ModMenu.MODS.values().stream()
+                Minecraft.getInstance().execute(() -> modsFuture.complete(ModMenu.MODS.values().stream()
                     .map(mod -> mod.getName() + "\t" + mod.getVersion()).toList()));
                 List<String> mods = modsFuture.join();
                 this.sendResponse(socketChannel, String.join("\n", mods), true);
@@ -236,11 +235,11 @@ public class MCCLIServer extends Thread
                 {
                     int fov = Integer.parseInt(fovString);
                     CompletableFuture<Integer> fovFuture = new CompletableFuture<>();
-                    MinecraftClient.getInstance().execute(() ->
+                    Minecraft.getInstance().execute(() ->
                     {
-                        SimpleOption<Integer> fovOption = MinecraftClient.getInstance().options.getFov();
-                        fovOption.setValue(fov);
-                        fovFuture.complete(fovOption.getValue());
+                        OptionInstance<Integer> fovOption = Minecraft.getInstance().options.fov();
+                        fovOption.set(fov);
+                        fovFuture.complete(fovOption.get());
                     });
                     this.sendResponse(socketChannel, "set fov: " + fovFuture.join(), true);
                 }
@@ -256,11 +255,11 @@ public class MCCLIServer extends Thread
                 {
                     double brightness = Double.parseDouble(brightnessString);
                     CompletableFuture<Double> brightnessFuture = new CompletableFuture<>();
-                    MinecraftClient.getInstance().execute(() ->
+                    Minecraft.getInstance().execute(() ->
                     {
-                        SimpleOption<Double> brightnessOption = MinecraftClient.getInstance().options.getGamma();
-                        brightnessOption.setValue(brightness);
-                        brightnessFuture.complete(brightnessOption.getValue());
+                        OptionInstance<Double> brightnessOption = Minecraft.getInstance().options.gamma();
+                        brightnessOption.set(brightness);
+                        brightnessFuture.complete(brightnessOption.get());
                     });
                     this.sendResponse(socketChannel, "set brightness: " + brightnessFuture.join(), true);
                 }
@@ -276,12 +275,12 @@ public class MCCLIServer extends Thread
                 {
                     double volume = Double.parseDouble(volumeString);
                     CompletableFuture<Double> volumeFuture = new CompletableFuture<>();
-                    MinecraftClient.getInstance().execute(() ->
+                    Minecraft.getInstance().execute(() ->
                     {
-                        SimpleOption<Double> volumeOption
-                            = MinecraftClient.getInstance().options.getSoundVolumeOption(SoundCategory.MASTER);
-                        volumeOption.setValue(volume);
-                        volumeFuture.complete(volumeOption.getValue());
+                        OptionInstance<Double> volumeOption
+                            = Minecraft.getInstance().options.getSoundSourceOptionInstance(SoundSource.MASTER);
+                        volumeOption.set(volume);
+                        volumeFuture.complete(volumeOption.get());
                     });
                     this.sendResponse(socketChannel, "set volume: " + volumeFuture.join(), true);
                 }
@@ -294,7 +293,7 @@ public class MCCLIServer extends Thread
             {
                 String configName = message[1];
                 CompletableFuture<Boolean> configSuccessFuture = new CompletableFuture<>();
-                MinecraftClient.getInstance()
+                Minecraft.getInstance()
                     .execute(() -> configSuccessFuture.complete(ModMenuUtil.openConfigScreenFromModName(configName)));
                 boolean configSuccess = configSuccessFuture.join();
                 if (configSuccess)
@@ -326,20 +325,20 @@ public class MCCLIServer extends Thread
                 }
                 String messageText = message[2];
                 CompletableFuture<Boolean> messageSuccessFuture = new CompletableFuture<>();
-                MinecraftClient.getInstance().execute(() ->
+                Minecraft.getInstance().execute(() ->
                 {
                     if (sendType.equals("chat-local"))
                     {
-                        ClientPlayerEntity player = MinecraftClient.getInstance().player;
+                        LocalPlayer player = Minecraft.getInstance().player;
                         boolean canSend = player != null;
                         if (canSend)
                         {
-                            player.sendMessage(Text.of(messageText), true);
+                            player.displayClientMessage(Component.nullToEmpty(messageText), true);
                         }
                         messageSuccessFuture.complete(canSend);
                         return;
                     }
-                    ClientPlayNetworkHandler networkHandler = MinecraftClient.getInstance().getNetworkHandler();
+                    ClientPacketListener networkHandler = Minecraft.getInstance().getConnection();
                     if (networkHandler == null)
                     {
                         messageSuccessFuture.complete(false);
@@ -347,11 +346,11 @@ public class MCCLIServer extends Thread
                     }
                     if (isCommand)
                     {
-                        networkHandler.sendChatCommand(messageText);
+                        networkHandler.sendCommand(messageText);
                     }
                     else
                     {
-                        networkHandler.sendChatMessage(messageText);
+                        networkHandler.sendChat(messageText);
                     }
                     messageSuccessFuture.complete(true);
                 });
