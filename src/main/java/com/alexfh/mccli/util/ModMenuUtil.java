@@ -29,12 +29,12 @@ public class ModMenuUtil
             return false;
         }
         String modID = modIDEntry.getKey();
-        Screen configScreen = ModMenu.getConfigScreen(modID, minecraftClient.screen);
+        Screen configScreen = ModMenu.getConfigScreen(modID, minecraftClient.gui.screen());
         if (configScreen == null)
         {
             return false;
         }
-        minecraftClient.setScreen(configScreen);
+        minecraftClient.gui.setScreen(configScreen);
         return true;
     }
 

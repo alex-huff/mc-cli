@@ -333,7 +333,7 @@ public class MCCLIServer extends Thread
                         boolean canSend = player != null;
                         if (canSend)
                         {
-                            Minecraft.getInstance().gui.getChat().addClientSystemMessage(Component.nullToEmpty(messageText));
+                            Minecraft.getInstance().gui.hud.getChat().addClientSystemMessage(Component.nullToEmpty(messageText));
                         }
                         messageSuccessFuture.complete(canSend);
                         return;
